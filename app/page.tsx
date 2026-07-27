@@ -35,8 +35,7 @@ export default function App() {
   }, []);
 
   // A robust custom HTML to Markdown converter tailored for LLMs
-  // @ts-ignore
-  const nodeToMarkdown = (node : any) {
+   const nodeToMarkdown = (node : any) {
     if (node.nodeType === Node.TEXT_NODE) {
       return node.textContent.replace(/\s+/g, ' ');
     }
