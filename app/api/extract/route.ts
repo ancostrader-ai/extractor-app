@@ -32,11 +32,10 @@ export async function GET(request: Request) {
     if (nextMatch && nextMatch[2]) {
       nextUrlToFetch = nextMatch[2];
     } else if (page === 1) {
-      // 3. FALLBACK UMUM: Jika Jina tidak mendeteksi tombol next di teks, 
-      // kita paksa tambahkan ?page=2 (berlaku untuk Viva, Detik, Kompas, dll)
-      if (!originalBaseUrl.includes('?page=')) {
+   // 3. FALLBACK UMUM: Pastikan originalBaseUrl adalah string dan cek isinya
+    if (typeof originalBaseUrl === 'string' && !originalBaseUrl.includes('?page=')) {
         nextUrlToFetch = originalBaseUrl + '?page=2';
-      }
+    }
     }
 
     // Jika ditemukan link untuk halaman berikutnya dan belum melampaui halaman 2
