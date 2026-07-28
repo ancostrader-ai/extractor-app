@@ -6,20 +6,42 @@ export async function GET(request: Request) {
 
   if (!targetUrl) return NextResponse.json({ error: 'URL diperlukan' }, { status: 400 });
 
-  async function fetchWithPagination(url: string, page = 1, allContent = ""): Promise<string> {
-    if (page > 5) return allContent; // Limit 5 halaman untuk keamanan
+  async function fetchWithPagination(url: string, page = 1, allContent = "", originalBaseUrl = targetUrl): Promise<string> {
+    if (page > 5) return allContent; // Limit maksimal 5 halaman untuk keamanan
 
-    const res = await fetch(`https://r.jina.ai/${url}`);
+    // 1. Tambahkan parameter ?with-links=true dan Header User-Agent agar menyerupai browser asli
+    const fetchUrl = url.includes('?') ? `${url}&with-links=true` : `${url}?with-links=true`;
+    
+    const res = await fetch(`https://r.jina.ai/${fetchUrl}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/markdown'
+      }
+    });
+    
     const text = await res.text();
     
-    // Gabungkan konten
+    // Gabungkan konten halaman saat ini
     const combined = allContent + (allContent ? "\n\n--- Halaman " + page + " ---\n\n" : "") + text;
 
-    // Cari link halaman selanjutnya (Pola Markdown [Label](URL))
-    const nextMatch = text.match(/\[([^\]]*(?:next|selanjutnya|berikutnya)[^\]]*)\]\((https?:\/\/[^\s\)]+)\)/i);
+    // 2. Cari link halaman selanjutnya menggunakan pola Markdown [Label](URL)
+    let nextMatch = text.match(/\[([^\]]*(?:next|selanjutnya|berikutnya|halaman selanjutnya|page 2|2)[^\]]*)\]\((https?:\/\/[^\s\)]+)\)/i);
     
+    let nextUrlToFetch = null;
+
     if (nextMatch && nextMatch[2]) {
-      return fetchWithPagination(nextMatch[2], page + 1, combined);
+      nextUrlToFetch = nextMatch[2];
+    } else if (page === 1) {
+      // 3. FALLBACK UMUM: Jika Jina tidak mendeteksi tombol next di teks, 
+      // kita paksa tambahkan ?page=2 (berlaku untuk Viva, Detik, Kompas, dll)
+      if (!originalBaseUrl.includes('?page=')) {
+        nextUrlToFetch = originalBaseUrl + '?page=2';
+      }
+    }
+
+    // Jika ditemukan link untuk halaman berikutnya dan belum melampaui halaman 2
+    if (nextUrlToFetch && page < 2) { // Batasi page < 2 jika Anda hanya ingin sampai halaman 2
+      return fetchWithPagination(nextUrlToFetch, page + 1, combined, originalBaseUrl);
     }
     
     return combined;
